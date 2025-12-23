@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 防盜監控</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 50px; transition: background 0.5s; }
+    h1 { font-size: 3em; }
+    #status { font-size: 2em; margin-top: 20px; }
+    .safe { background-color: #e8f5e9; color: #2e7d32; }
+    .alarm { background-color: #ffebee; color: #c62828; }
+  </style>
+</head>
+<body class="safe">
+
+  <h1 id="statusText">監控中...</h1>
+  <div id="status">等待連線...</div>
+
+  <button id="playBtn" style="display:none; margin-top:30px; padding:20px; font-size:1.5em; background-color:red; color:white; border:none; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+    🔊 開啟警報聲
+  </button>
+  
+  <audio id="alarmSound" src="https://www.soundjay.com/buttons/beep-01a.mp3" loop></audio>
+
+  <p style="color:gray; font-size:0.8em; margin-top:50px;">
+    (請先點擊畫面任意處以啟用網頁功能)
+  </p>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 這裡記得填回你剛剛那一串 config
+    const firebaseConfig = {
+        apiKey: "AIzaSyATnKODPUhALae4W2eKS87DnGYoWp1qfTQ",
+        authDomain: "protag-5888d.firebaseapp.com",
+        databaseURL: "https://protag-5888d-default-rtdb.firebaseio.com",
+        projectId: "protag-5888d",
+        storageBucket: "protag-5888d.firebasestorage.app",
+        messagingSenderId: "745205812540",
+        appId: "1:745205812540:web:9904001e10f13f95bba239",
+        measurementId: "G-PWM2Z4WK2D"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const alarmRef = ref(db, 'alarm_status');
+    const alarmSound = document.getElementById("alarmSound");
+    const playBtn = document.getElementById("playBtn");
+    const body = document.body;
+    const statusText = document.getElementById("statusText");
+
+    // 這是瀏覽器的限制，一定要先點一次網頁才能啟用震動和聲音
+    document.addEventListener('click', () => {
+        // 點擊後什麼都不做，只是為了騙取瀏覽器信任
+        console.log("網頁已啟用");
+    }, { once: true });
+
+    // 設定按鈕的功能：點了才開始叫
+    playBtn.addEventListener('click', () => {
+        alarmSound.play();
+        playBtn.innerText = "🔕 關閉聲音"; // 按下後按鈕文字改變
+    });
+
+    onValue(alarmRef, (snapshot) => {
+      const data = snapshot.val();
+      document.getElementById("status").innerText = "感測值: " + data;
+
+      if (data === 1) {
+        // --- 警報觸發 ---
+        statusText.innerText = "⚠️ 警告：門被打開！";
+        body.className = "alarm";
+
+        // 1. 執行震動 (Android Only)
+        // 模式：震動500ms -> 停200ms -> 震動500ms...
+        if (navigator.vibrate) {
+            navigator.vibrate([500, 200, 500, 200, 500]); 
+        }
+
+        // 2. 顯示按鈕，讓使用者決定要不要播聲音
+        playBtn.style.display = "inline-block";
+        playBtn.innerText = "🔊 開啟警報聲"; // 重置按鈕文字
+
+      } else {
+        // --- 解除警報 ---
+        statusText.innerText = "✅ 安全";
+        body.className = "safe";
+        
+        // 停止聲音
+        alarmSound.pause();
+        alarmSound.currentTime = 0;
+        
+        // 隱藏按鈕
+        playBtn.style.display = "none";
+        
+        // 停止震動 (傳 0 就是停止)
+        if (navigator.vibrate) {
+            navigator.vibrate(0);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
