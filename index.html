@@ -51,16 +51,27 @@
     const body = document.body;
     const statusText = document.getElementById("statusText");
 
-    // 這是瀏覽器的限制，一定要先點一次網頁才能啟用震動和聲音
-    document.addEventListener('click', () => {
-        // 點擊後什麼都不做，只是為了騙取瀏覽器信任
-        console.log("網頁已啟用");
-    }, { once: true });
+    // 用一個變數來記錄現在是不是正在播放聲音
+    let isPlaying = false;
 
-    // 設定按鈕的功能：點了才開始叫
+    // 解決瀏覽器限制
+    document.addEventListener('click', () => { console.log("網頁已啟用"); }, { once: true });
+
+    // --- 修改重點 1：按鈕變成開關邏輯 ---
     playBtn.addEventListener('click', () => {
-        alarmSound.play();
-        playBtn.innerText = "🔕 關閉聲音"; // 按下後按鈕文字改變
+        if (isPlaying) {
+            // 如果正在播 -> 暫停
+            alarmSound.pause();
+            playBtn.innerText = "🔊 開啟警報聲"; // 按鈕變回開啟
+            playBtn.style.backgroundColor = "red"; // 改回紅色提醒去按
+            isPlaying = false;
+        } else {
+            // 如果沒在播 -> 播放
+            alarmSound.play();
+            playBtn.innerText = "🔕 關閉聲音"; // 按鈕變成關閉
+            playBtn.style.backgroundColor = "gray"; // 變成灰色代表已開啟
+            isPlaying = true;
+        }
     });
 
     onValue(alarmRef, (snapshot) => {
@@ -72,18 +83,14 @@
         statusText.innerText = "⚠️ 警告：門被打開！";
         body.className = "alarm";
 
-        // 1. 執行震動 (Android Only)
-        // 模式：震動500ms -> 停200ms -> 震動500ms...
-        if (navigator.vibrate) {
-            navigator.vibrate([500, 200, 500, 200, 500]); 
-        }
+        if (navigator.vibrate) { navigator.vibrate([500, 200, 500, 200, 500]); }
 
-        // 2. 顯示按鈕，讓使用者決定要不要播聲音
+        // 顯示按鈕
         playBtn.style.display = "inline-block";
-        playBtn.innerText = "🔊 開啟警報聲"; // 重置按鈕文字
+        // 這裡不自動播放，保持安靜，等使用者按按鈕
 
       } else {
-        // --- 解除警報 ---
+        // --- 解除警報 (安全) ---
         statusText.innerText = "✅ 安全";
         body.className = "safe";
         
@@ -91,13 +98,13 @@
         alarmSound.pause();
         alarmSound.currentTime = 0;
         
-        // 隱藏按鈕
+        // --- 修改重點 2：重置所有狀態 ---
         playBtn.style.display = "none";
+        playBtn.innerText = "🔊 開啟警報聲"; // 重置文字
+        playBtn.style.backgroundColor = "red"; // 重置顏色
+        isPlaying = false; // 重置狀態變數
         
-        // 停止震動 (傳 0 就是停止)
-        if (navigator.vibrate) {
-            navigator.vibrate(0);
-        }
+        if (navigator.vibrate) { navigator.vibrate(0); }
       }
     });
   </script>
